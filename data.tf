@@ -14,7 +14,11 @@ data "aws_vpc" "lz_vpc" {
 
 data "aws_subnet" "my_subnet" {
   vpc_id = data.aws_vpc.lz_vpc.id
-  cidr_block = "10.1.1.0/24"
+//  cidr_block = "10.1.1.0/24"
+  filter {
+    name = "tag:Name"
+    values = ["Kaush-pub1"]
+  }
 }
 
 # //////////////////////////////
