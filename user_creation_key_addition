@@ -1,0 +1,90 @@
+---
+- hosts: all
+  become: yes
+    #  vars:
+    #    password: password
+  tasks:
+  - name: Add the user 'svccloudscape'
+    ansible.builtin.user:
+      name: svccloudscape
+      comment: user one
+      state: present
+        #password: "{{'password' | password_hash ('sha512')}}"
+      password: P0hq69qKKpL2g
+
+  - name: Check if entry exists in sshd_config
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: "/usr/local/dj"
+      state: absent
+    check_mode: yes
+    changed_when: false
+    register: st
+  - debug:
+      var: st
+
+
+  - name: Set authorized_key in DJ Keys Directory
+    ansible.builtin.copy:
+      src: /home/svcansadm/svccloudscape/keyfile.pub
+      dest: /usr/local/dj/keys/svccloudscape_authorized_keys
+    when: st.found
+
+  - name: set authorized key in user's ssh directory
+    authorized_key:
+      user: svccloudscape
+      key: "{{ lookup('file', '/home/svcansadm/svccloudscape/keyfile.pub') }}"
+    when : not st.found
+
+  - name: Selinux context chcon to DJ Keys Directory
+    ansible.builtin.command: chcon -R unconfined_u:object_r:user_home_t:s0 /usr/local/dj/keys/
+    ignore_errors: yes
+    when: st.found
+
+  - name: Selinux context semanage to DJ Keys Directory
+    ansible.builtin.command: semanage fcontext -a -t ssh_home_t /usr/local/dj/keys/
+    ignore_errors: yes
+    when: st.found
+
+  - name: Apply new SELinux file context to DJ Keys Directory
+    ansible.builtin.command: restorecon -v /usr/local/dj/keys/
+    ignore_errors: yes
+    when: st.found
+        
+  - name: Selinux context chcon to user's ssh Directory
+    ansible.builtin.command: chcon -R unconfined_u:object_r:user_home_t:s0 /home/svccloudscape/.ssh/
+    ignore_errors: yes
+    when: not st.found
+
+  - name: Selinux context semanage to user's ssh Directory
+    ansible.builtin.command: semanage fcontext -a -t ssh_home_t /home/svccloudscape/.ssh/
+    ignore_errors: yes
+    when: not st.found
+
+  - name: Apply new SELinux file context to user's ssh Directory
+    ansible.builtin.command: restorecon -v /home/svccloudscape/.ssh/
+    ignore_errors: yes
+    when: not st.found
+
+  - name: Make sure to include "#includedir" line is in file
+    lineinfile:
+      line: "#includedir /etc/sudoers.d"
+      path: /etc/sudoers
+      create: false
+
+  - name: Make sure the sudoers directory exists
+    file:
+      path: /etc/sudoers.d/
+      state: directory
+      mode: 0750
+      owner: root
+      group: root
+
+  - name: Add file in sudoers Directory
+    ansible.builtin.template:
+      src: '/home/svcansadm/svccloudscape/sudoersfile'
+      dest: '/etc/sudoers.d/'
+      validate: 'visudo -cf %s'
+      owner: root
+      group: root
+      mode: 0440
