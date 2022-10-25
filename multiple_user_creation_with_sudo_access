@@ -1,0 +1,26 @@
+# default/main.yml
+
+---
+# defaults file for usercreate
+#
+
+user_details:
+  - {name: 'ne225839', uid: 1225839, comment: "Kaushal Thakur" , password: 'hegJBFoH35Z0Q' , groups: ['wheel', 'users'] , home: '/home/ne225839' , update_pass: 'on_create'}
+
+
+
+
+# task/main.yml
+
+---
+   - name: Add users with details
+     ansible.builtin.user:
+       name: "{{ item.name }}"
+       comment: "{{ item.comment }}"
+       uid: "{{ item.uid }}"
+       password: "{{ item.password }}"
+       groups: "{{ item.groups }}"
+       home: "{{ item.home }}"
+       update_password: "{{ item.update_pass }}"
+       state: present
+     with_items: "{{ user_details }}"
